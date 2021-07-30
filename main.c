@@ -1,68 +1,114 @@
 #include <stdio.h>
-#include <pthread.h>
-#include <semaphore.h>
-#include <stdlib.h>
 #include <unistd.h>
-
-sem_t s;
-int count = 2;
-
-void * uart_init(void *data)
-{
-while(1)
-{
-if(count>0)
-{
-    int randint = rand()%6;
-    sem_wait(&s);
-    count--;
-    printf("uart in use by t%d\n",*(int *)data);
-    sleep(randint);
-    printf("uart returned by t%d\n",*(int *)data);
-    count++;
-    printf("uarts left : %d\n",count);
-    
-    sem_post(&s);
-
-}
-
-}
-}
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
+#include<stdlib.h>
 
 
-void * res_count(void *data)
-{
-while(1)
-{
-if(count == 0)
-{
-    printf("no uarts available \n");
-    sem_wait(&s);
-}
-}
-
-}
+#define SIZE 64
 int main()
 {
+    pid_t id1,id2;
+    char wrd1[SIZE],wrd2[SIZE];
+    FILE *fd;
+    char buff1[SIZE],buff2[SIZE];
+    fd = fopen("/usr/share/dict/american-english","r");
+    if(fd == NULL)
+    {
+        perror("error opening file");
+        exit(EXIT_FAILURE);
+    }
 
-sem_init(&s,0,3);
+    int pfd[2],pfd2[2];
+    pipe(pfd);
+    pipe(pfd2);
+    id1 = fork();
 
-pthread_t tr1,tr2,tr3,tr4;
-int t1 = 1,t2 = 2,t3 = 3;
+    if(id1 == 0)
+    {
+        close(pfd[1]);
+        read(pfd[0],buff1,SIZE);
+        printf(" child 1 msg recieved : %s\n",buff1);
+        close(pfd[0]);   
+        int i =0;
+        char ch;
 
-printf("uarts left : %d\n",count);
+        while((ch = fgetc(fd)) != EOF)
+        {
+            //fscanf(fd, " %s",wrd1);
+            if(ch == ' '|| ch == '\n')
+            {
+                i = 0;
+            }
+          wrd1[i] = ch;
+          i++;
+            printf("%s\n",wrd1);
+            if(!strcmp(wrd1,buff1))
+            {
+                printf("child1: FOUND");
+                break;
+            }
+            exit(EXIT_SUCCESS);
+        }
 
-pthread_create(&tr1,NULL,uart_init,&t1);
-pthread_create(&tr2,NULL,uart_init,&t2);
-pthread_create(&tr3,NULL,uart_init,&t3);
-pthread_create(&tr4,NULL,res_count,NULL);
+        
+    }else{
+        close(pfd[0]);
+        write(pfd[1],"hello",6);
+        close(pfd[1]);
 
-pthread_join(tr1,NULL);
-pthread_join(tr2,NULL);
-pthread_join(tr3,NULL);
-pthread_join(tr4,NULL);
+    id2 = fork();
+    if(id2 == 0)
+    {
+        close(pfd2[1]);
+        read(pfd2[0],buff2,SIZE);
+        printf("child 2 msg recieved : %s\n",buff2);
+        close(pfd2[0]);
 
-sem_destroy(&s);
+        char ch,wrd2[SIZE],wrdrev[SIZE];
 
+ fseek(fd,-1L,SEEK_END);
+         int i =0;
+
+    while(ftell(fd)!=0)
+    {
+        i = 0;
+        while((ch = fgetc(fd)!= ' ')||(ch = getc(fd)!= '\n'))
+        {
+            wrd2[i] = ch;
+            i++;
+            fseek(fd,-1L,SEEK_END);
+        }
+        int len = strlen(wrd2);
+        for(i = len-1;i>=0;i--)
+{
+wrdrev[len-i-1] =wrd2[i];
+}
+wrdrev[len] = '\0';
+        if(!strcmp(wrdrev,buff2))
+        {
+             printf("child2: FOUND");
+                break;
+            }
+            exit(EXIT_SUCCESS);
+    }
+
+
+    }else if(id2 !=0){
+
+
+        printf("parent process: \n");
+        close(pfd2[0]);
+        write(pfd2[1],"hello",6);
+        close(pfd2[1]);
+
+        
+
+    }
+
+    }
+    fclose(fd);
 return 0;
 }
