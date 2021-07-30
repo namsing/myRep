@@ -12,14 +12,30 @@ int main()
 {
     pid_t id1,id2;
     char wrd1[SIZE],wrd2[SIZE];
-    FILE *fd;
-    char buff1[SIZE],buff2[SIZE];
+     FILE *fd,*fd2;
+    char buff1[SIZE],buff2[SIZE],ch;
     fd = fopen("/usr/share/dict/american-english","r");
-    if(fd == NULL)
+    fd2 = fopen("p2.txt","w+");
+    if(fd == NULL||fd2 == NULL)
     {
         perror("error opening file");
         exit(EXIT_FAILURE);
     }
+
+    fseek(fd,-1L,2);
+        long count = ftell(fd);
+         
+         int i =0;
+
+    while(count!=0)
+    {
+            ch = fgetc(fd);
+            fputc(ch,fd2);
+             fseek(fd,-2L,1);
+            count--;
+            
+    }
+    rewind(fd2);
 
     int pfd[2],pfd2[2];
     pipe(pfd);
@@ -35,28 +51,28 @@ int main()
         int i =0;
         char ch;
 
-        while((ch = fgetc(fd)) != EOF)
+        sleep(1);
+        
+        
+            while(!feof(fd))
         {
-            //fscanf(fd, " %s",wrd1);
-            if(ch == ' '|| ch == '\n')
-            {
-                i = 0;
-            }
-          wrd1[i] = ch;
-          i++;
-            printf("%s\n",wrd1);
-            if(!strcmp(wrd1,buff1))
+
+        fscanf(fd,"%s",wrd1);
+        printf("child1 word: %s\n",wrd1);
+        if(!strcmp(wrd1,buff1))
             {
                 printf("child1: FOUND");
                 break;
             }
-            exit(EXIT_SUCCESS);
-        }
 
+        }
+          
+             exit(EXIT_SUCCESS);
+             //_exit()
         
     }else{
         close(pfd[0]);
-        write(pfd[1],"hello",6);
+        write(pfd[1],"zoos",4);
         close(pfd[1]);
 
     id2 = fork();
@@ -67,41 +83,39 @@ int main()
         printf("child 2 msg recieved : %s\n",buff2);
         close(pfd2[0]);
 
-        char ch,wrd2[SIZE],wrdrev[SIZE];
 
- fseek(fd,-1L,SEEK_END);
-         int i =0;
+        char ch,wrdrev[SIZE];
 
-    while(ftell(fd)!=0)
-    {
-        i = 0;
-        while((ch = fgetc(fd)!= ' ')||(ch = getc(fd)!= '\n'))
+        
+
+     while(!feof(fd2))
         {
-            wrd2[i] = ch;
-            i++;
-            fseek(fd,-1L,SEEK_END);
+
+        fscanf(fd2,"%s",wrd2);
+         int len = strlen(wrd2);
+            printf("word2 len = %d\n",len);
+            for(i = len-1;i>=0;i--)
+        {
+            wrdrev[len-i-1] =wrd2[i];
         }
-        int len = strlen(wrd2);
-        for(i = len-1;i>=0;i--)
-{
-wrdrev[len-i-1] =wrd2[i];
-}
-wrdrev[len] = '\0';
+            wrdrev[len] = '\0';
+            printf("child2 word: %s\n",wrdrev);
         if(!strcmp(wrdrev,buff2))
-        {
-             printf("child2: FOUND");
+            {
+                printf("child2: FOUND");
                 break;
             }
+
+        }
             exit(EXIT_SUCCESS);
-    }
+            //_exit()
 
-
-    }else if(id2 !=0){
+    }else{
 
 
         printf("parent process: \n");
         close(pfd2[0]);
-        write(pfd2[1],"hello",6);
+        write(pfd2[1],"zoos",4);
         close(pfd2[1]);
 
         
